@@ -36,3 +36,10 @@ export interface GenerationRequest {
   startDate: string;
   platformPreference: SocialPlatform[];
 }
+
+export interface Asset {
+  id: string;
+  url: string;
+  name: string;
+  createdAt: string;
+}

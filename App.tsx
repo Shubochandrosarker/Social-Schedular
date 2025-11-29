@@ -5,15 +5,9 @@ import { Dashboard } from './components/Dashboard';
 import { Generator } from './components/Generator';
 import { CalendarView } from './components/CalendarView';
 import { Settings } from './components/Settings';
+import { AssetLibrary } from './components/AssetLibrary';
 import { getStoredPosts, addPosts, getProfile, saveProfile } from './services/mockStore';
 import { Post } from './types';
-
-const AssetLibrary = () => (
-    <div className="text-center py-20">
-        <h2 className="text-2xl font-bold text-gray-400">Asset Library</h2>
-        <p className="text-gray-500">Coming soon: Upload and manage your media assets.</p>
-    </div>
-);
 
 const App: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);

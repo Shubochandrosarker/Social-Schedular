@@ -1,10 +1,11 @@
-import { Post, SocialAccount, BusinessProfile } from "../types";
+import { Post, SocialAccount, BusinessProfile, Asset } from "../types";
 
 // Keys for localStorage
 const POSTS_KEY = 'markyclone_posts';
 const PROFILE_KEY = 'markyclone_profile';
 const ACCOUNTS_KEY = 'markyclone_accounts';
 const AYRSHARE_KEY_STORAGE = 'markyclone_ayrshare_key';
+const ASSETS_KEY = 'markyclone_assets';
 
 const DEFAULT_ACCOUNTS: SocialAccount[] = [
   { id: '1', platform: 'facebook', connected: false },
@@ -84,3 +85,23 @@ export const getAyrshareKey = (): string => {
 export const saveAyrshareKey = (key: string) => {
     localStorage.setItem(AYRSHARE_KEY_STORAGE, key);
 }
+
+// Asset Management
+export const getAssets = (): Asset[] => {
+  const data = localStorage.getItem(ASSETS_KEY);
+  return data ? JSON.parse(data) : [];
+};
+
+export const addAsset = (asset: Asset) => {
+  const current = getAssets();
+  const updated = [asset, ...current];
+  localStorage.setItem(ASSETS_KEY, JSON.stringify(updated));
+  return updated;
+};
+
+export const deleteAsset = (id: string) => {
+  const current = getAssets();
+  const updated = current.filter(a => a.id !== id);
+  localStorage.setItem(ASSETS_KEY, JSON.stringify(updated));
+  return updated;
+};

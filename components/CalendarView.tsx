@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { Post, SocialPlatform } from '../types';
-import { ChevronLeft, ChevronRight, Edit2, Trash2, Send, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Edit2, Trash2, Send, Loader2, Image as ImageIcon, X } from 'lucide-react';
 import { updatePost, deletePost, getAyrshareKey } from '../services/mockStore';
 import { postToAyrshare } from '../services/ayrshareService';
+import { AssetLibrary } from './AssetLibrary';
 
 interface CalendarViewProps {
   posts: Post[];
@@ -15,6 +16,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ posts, onUpdatePosts
   const [isEditing, setIsEditing] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [publishStatus, setPublishStatus] = useState<string | null>(null);
+  const [showAssetModal, setShowAssetModal] = useState(false);
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -54,6 +56,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ posts, onUpdatePosts
     setSelectedPost(post);
     setIsEditing(true);
     setPublishStatus(null);
+    setShowAssetModal(false);
   };
 
   const saveEditedPost = async (e: React.FormEvent) => {
@@ -63,7 +66,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ posts, onUpdatePosts
       
       // If saving as Scheduled or Published, try to send to API
       if (selectedPost.status !== 'draft') {
-          await handleRealPublish(selectedPost, false);
+          // Note: Logic could be refined to only publish if status CHANGED to scheduled/published
+          // For now, simple save. Manual publish button is better for control.
       }
       
       setIsEditing(false);
@@ -72,9 +76,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ posts, onUpdatePosts
     }
   };
 
-  const handleRealPublish = async (post: Post, closeOnSuccess = true) => {
+  const handleRealPublish = async (post: Post) => {
       const apiKey = getAyrshareKey();
-      if (!apiKey) return; // Stay in local mode if no key
+      if (!apiKey) {
+        setPublishStatus("Error: No API Key found in Settings.");
+        return;
+      }
 
       setPublishing(true);
       setPublishStatus('Syncing with social networks...');
@@ -82,18 +89,13 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ posts, onUpdatePosts
       try {
           await postToAyrshare(apiKey, post);
           
-          // Update local status to published if successful
           const updated = { ...post, status: 'published' as const };
           updatePost(updated);
+          // Update selected post state to reflect change immediately in UI
+          setSelectedPost(updated);
           onUpdatePosts();
           
           setPublishStatus('Successfully published!');
-          if (closeOnSuccess) {
-              setTimeout(() => {
-                  setIsEditing(false);
-                  setSelectedPost(null);
-              }, 1500);
-          }
       } catch (err: any) {
           console.error(err);
           setPublishStatus(`Error: ${err.message || 'Failed to publish'}`);
@@ -177,16 +179,33 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ posts, onUpdatePosts
             </div>
             
             <form onSubmit={saveEditedPost} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                  <div className="col-span-1">
-                   {selectedPost.image && (
-                     <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
+                   <div className="relative aspect-square rounded-lg overflow-hidden bg-gray-100 dark:bg-slate-800 mb-2 group">
+                     {selectedPost.image ? (
                        <img src={selectedPost.image} className="w-full h-full object-cover" alt="Post visual" />
+                     ) : (
+                        <div className="flex items-center justify-center h-full text-gray-400">
+                            <ImageIcon size={32} />
+                        </div>
+                     )}
+                     <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <button
+                            type="button"
+                            onClick={() => setShowAssetModal(true)}
+                            className="bg-white text-gray-900 px-4 py-2 rounded-lg font-medium hover:bg-gray-100"
+                        >
+                            Change Image
+                        </button>
                      </div>
-                   )}
-                   <div className="mt-2 text-xs text-gray-500">
-                     Drag & drop from Asset Library (Coming Soon)
                    </div>
+                   <input 
+                      type="text" 
+                      placeholder="Or paste image URL..."
+                      className="w-full text-xs px-2 py-1 rounded border dark:bg-slate-800 dark:border-slate-700 dark:text-gray-400"
+                      value={selectedPost.image || ''}
+                      onChange={(e) => setSelectedPost({...selectedPost, image: e.target.value})}
+                   />
                  </div>
                  <div className="col-span-1 space-y-4">
                     <div>
@@ -266,15 +285,15 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ posts, onUpdatePosts
                       type="button"
                       onClick={() => handleRealPublish(selectedPost)}
                       disabled={publishing || !getAyrshareKey()}
-                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       title={!getAyrshareKey() ? "Add API Key in Settings to publish" : "Publish now via Ayrshare"}
                     >
                         {publishing ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>}
-                        Publish Now
+                        {selectedPost.status === 'published' ? 'Republish' : 'Publish'}
                     </button>
                     <button 
                     type="submit"
-                    className="bg-primary hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2"
+                    className="bg-primary hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors"
                     >
                     <Edit2 size={16} /> Save Changes
                     </button>
@@ -283,6 +302,29 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ posts, onUpdatePosts
             </form>
           </div>
         </div>
+      )}
+
+      {/* Asset Picker Modal */}
+      {showAssetModal && selectedPost && (
+         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+             <div className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl w-full max-w-4xl max-h-[85vh] overflow-y-auto flex flex-col">
+                <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center sticky top-0 bg-white dark:bg-slate-900 z-10">
+                    <h3 className="text-lg font-bold dark:text-white">Select Image from Library</h3>
+                    <button onClick={() => setShowAssetModal(false)} className="p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded-full">
+                        <X size={20} />
+                    </button>
+                </div>
+                <div className="p-6">
+                    <AssetLibrary 
+                        isModal={true} 
+                        onSelect={(url) => {
+                            setSelectedPost({...selectedPost, image: url});
+                            setShowAssetModal(false);
+                        }} 
+                    />
+                </div>
+             </div>
+         </div>
       )}
     </div>
   );
